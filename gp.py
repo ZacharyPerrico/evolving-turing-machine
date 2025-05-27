@@ -3,7 +3,7 @@ from scipy.optimize import minimize
 from node import *
 from plot import *
 
-"""Functions relevant to implementing genetic programming"""
+"""Functions used in the evolution of Node based genetic programming"""
 
 
 #

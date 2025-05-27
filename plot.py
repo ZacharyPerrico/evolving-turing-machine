@@ -4,10 +4,10 @@ import networkx as nx
 import numpy as np
 from matplotlib import pyplot as plt
 
-from node import Node
+from tm import TM
 from utils import load_kwargs, load_runs
 
-""" All functions relevant to saving, loading, and plotting."""
+"""All functions relevant to plotting"""
 
 
 def plot_nodes(nodes, result_fitness_func=None, labels=None, title=None, legend_title=None, **kwargs):
@@ -321,7 +321,7 @@ def plot_graph(node, layout='topo', scale=1, title=None, **kwargs):
     )
     # nx.draw_networkx_edge_labels(
     #     G,
-    #     pos,
+    #     head,
     #     connectionstyle=connectionstyle,
     #     edge_labels = {edges[key]: label for key,label in enumerate(edge_props)},
     #     alpha=0.5,
@@ -347,9 +347,13 @@ def get_best(all_pops, all_fits, gen=-1, **kwargs):
     nodes = []
     # Iterate over all runs
     for run in range(all_pops.shape[0]):
-        i = all_fits[run, slice(None), gen, :].argmin()
+        if kwargs['minimize_fitness']:
+            i = all_fits[run, slice(None), gen, :].argmin()
+        else:
+            i = all_fits[run, slice(None), gen, :].argmax()
         node = all_pops[run, slice(None), gen, :].flatten()[i]
-        nodes.append(Node.from_lists(*node))
+        # nodes.append(Node.from_lists(*node))
+        nodes.append(node)
     return nodes
 
 
@@ -380,19 +384,16 @@ def plot_results(all_pops, all_fits, **kwargs):
 
     for i, node in enumerate(best):
         print(node)
-        title = 'Best Graph (' + kwargs['test_kwargs'][i + 1][0] + ')'
-        plot_graph(node, title=title, **kwargs)
+        tm = TM(node)
+        tm.run(100)
+        # kwargs['fitness_func']()
+        tm.pprint()
+        # print(node)
+        # title = 'Best Graph (' + kwargs['test_kwargs'][i + 1][0] + ')'
+        # plot_graph(node, title=title, **kwargs)
 
 
 if __name__ == '__main__':
     kwargs = load_kwargs('debug')
     pops, fits = load_runs(**kwargs)
     plot_results(pops, fits, **kwargs)
-
-    # x = Node('x')
-    # f = x / x + x * x
-    # f = f.to_tree()
-    # plot_graph(f)
-
-
-

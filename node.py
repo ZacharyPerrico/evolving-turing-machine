@@ -2,8 +2,6 @@ import math
 import numpy as np
 import sympy as sp
 
-# from plot import plot_graph
-
 
 class Node:
     """A basic class for genetic programming. A Node holds a single value and points to zero or more children Nodes."""

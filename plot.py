@@ -50,7 +50,18 @@ def plot_nodes(nodes, result_fitness_func=None, labels=None, title=None, legend_
     plt.show()
 
 
+def plot_tape(trans, fitness_func=None, labels=None, title=None, legend_title=None, **kwargs):
+    """Plot the resulting Turing tape"""
+    tape = TM(trans)(kwargs['tm_timeout'])
+    plt.title(title)
+    plt.imshow(tape)
+    plt.legend(title=kwargs['test_kwargs'][0][0])
+    plt.savefig(f'saves/{kwargs["name"]}/plots/{title}.png')
+    plt.show()
+
+
 def plot_min_fit(all_pops, all_fits, title=None, legend_title=None, **kwargs):
+    """Plot the average of the runs' minimum fitness for each test"""
     fig, ax = plt.subplots()
     x = np.array(range(all_fits.shape[2]))
     for test in range(all_fits.shape[0]):
@@ -70,6 +81,7 @@ def plot_min_fit(all_pops, all_fits, title=None, legend_title=None, **kwargs):
 
 
 def plot_means(values, ylabel):
+    """Plot the means of some values"""
     fig, ax = plt.subplots()
     for test in range(values.shape[0]):
         label = kwargs['test_kwargs'][test + 1][0]
@@ -141,90 +153,6 @@ def plot_hist(values, ylabel):
     plt.legend(title=kwargs['test_kwargs'][0][0])
     plt.savefig(f'saves/{kwargs["name"]}/plots/{ylabel}.png')
     plt.show()
-
-
-# def plot_size(all_pops, all_fits, **kwargs):
-#     graph_size = np.vectorize(lambda x: len(x[0]))(all_pops)
-#     for test in range(all_fits.shape[0]):
-#         label = kwargs['test_kwargs'][test + 1][0]
-#         ys = np.mean(graph_size[test], axis=(0,2))
-#         xs = np.array(range(all_fits.shape[2]))
-#         plt.plot(xs, ys, label=label)
-#     plt.xlabel('Generation')
-#     plt.ylabel('Average Number of Nodes')
-#     plt.legend(title=kwargs['test_kwargs'][0][0])
-#     plt.savefig(f'saves/{kwargs["name"]}/plots/Size.png')
-#     plt.show()
-
-
-# def plot_quality_gain(all_pops, all_fits, **kwargs):
-#     """Plot the expected change in fitness from parent to offspring"""
-#     # Calculate quality gain and replace invalid values with zero as no meaningful change occurred
-#     quality_gain = all_fits - np.vectorize(lambda x: x.prev_fit, otypes=[float])(all_pops)
-#     quality_gain[abs(quality_gain) > 1e100] = 0
-#     quality_gain = np.nan_to_num(quality_gain, nan=0)
-#     for test in range(all_fits.shape[0]):
-#         label = kwargs['test_kwargs'][test + 1][0]
-#         ys = np.mean(quality_gain[test], axis=(0,2))
-#         xs = np.array(range(all_fits.shape[2]))
-#         plt.plot(xs, ys, label=label)
-#     # plt.gca().set_yscale('log')
-#     plt.xlabel('Generation')
-#     plt.ylabel('Quality Gain')
-#     plt.legend(title=kwargs['test_kwargs'][0][0])
-#     plt.savefig(f'saves/{kwargs["name"]}/plots/Quality Gain.png')
-#     plt.show()
-#
-#
-# def plot_success_rate(all_pops, all_fits, legend_title=None, **kwargs):
-#     """Plot the probability that an offspring is better than their parent"""
-#     # Calculate success rate and replace invalid values with zero as no meaningful change occurred
-#     success_rate = all_fits < np.vectorize(lambda x: x.prev_fit, otypes=[float])(all_pops)
-#     success_rate[abs(success_rate) > 1e100] = 0
-#     success_rate = np.nan_to_num(success_rate, nan=0)
-#     for test in range(all_fits.shape[0]):
-#         label = kwargs['test_kwargs'][test + 1][0]
-#         ys = np.mean(success_rate[test], axis=(0,2))
-#         xs = np.array(range(all_fits.shape[2]))
-#         plt.plot(xs, ys, label=label)
-#     plt.xlabel('Generation')
-#     plt.ylabel('Success Rate')
-#     plt.legend(title=kwargs['test_kwargs'][0][0])
-#     plt.savefig(f'saves/{kwargs["name"]}/plots/Success Rate.png')
-#     plt.show()
-#
-#
-# def plot_effective(all_pops, all_fits, legend_title=None, **kwargs):
-#     """Plot the percentage of operations that have a non-zero semantic vector"""
-#     effective_code = np.vectorize(lambda x: x.effective_code())(all_pops)
-#     for test in range(all_fits.shape[0]):
-#         label = kwargs['test_kwargs'][test + 1][0]
-#         ys = np.mean(effective_code[test], axis=(0,2))
-#         xs = np.array(range(all_fits.shape[2]))
-#         plt.plot(xs, ys, label=label)
-#     plt.xlabel('Generation')
-#     plt.ylabel('% Active Traversed Nodes')
-#     plt.legend(title=kwargs['test_kwargs'][0][0])
-#     plt.savefig(f'saves/{kwargs["name"]}/plots/Active Nodes.png')
-#     plt.show()
-#
-#
-# def plot_noop_size(all_pops, all_fits, legend_title=None, **kwargs):
-#     """Plot the percentage of operations that have a non-zero semantic vector"""
-#     noop_size = np.vectorize(
-#         lambda x:
-#             sum([len(x[i].nodes()) for i in range(1,len(x))]) / len(x.nodes()) if x.value == 'noop' else 0
-#     )(all_pops)
-#     for test in range(all_fits.shape[0]):
-#         label = kwargs['test_kwargs'][test + 1][0]
-#         ys = np.mean(noop_size[test], axis=(0,2))
-#         xs = np.array(range(all_fits.shape[2]))
-#         plt.plot(xs, ys, label=label)
-#     plt.xlabel('Generation')
-#     plt.ylabel('% No-Op Traversed Nodes')
-#     plt.legend(title=kwargs['test_kwargs'][0][0])
-#     plt.savefig(f'saves/{kwargs["name"]}/plots/Noop Nodes.png')
-#     plt.show()
 
 
 #
@@ -363,7 +291,7 @@ def plot_results(all_pops, all_fits, **kwargs):
     os.makedirs(path, exist_ok=True)
     print('Plotting results')
 
-    # plot_min_fit(all_pops, all_fits, title='', **kwargs)
+    plot_min_fit(all_pops, all_fits, title='', **kwargs)
 
     # Plot best
     best = get_best(all_pops, all_fits, **kwargs)
@@ -382,18 +310,12 @@ def plot_results(all_pops, all_fits, **kwargs):
     # plot_effective(all_pops, all_fits, **kwargs)
     # plot_noop_size(all_pops, all_fits, **kwargs)
 
-    for i, node in enumerate(best):
-        print(node)
-        tm = TM(node)
-        tm.run(100)
-        # kwargs['fitness_func']()
-        tm.pprint()
-        # print(node)
-        # title = 'Best Graph (' + kwargs['test_kwargs'][i + 1][0] + ')'
-        # plot_graph(node, title=title, **kwargs)
+    for i, tm in enumerate(best):
+        title = 'Best TM (' + kwargs['test_kwargs'][i + 1][0] + ')'
+        plot_tape(tm, title=title, **kwargs)
 
 
 if __name__ == '__main__':
-    kwargs = load_kwargs('debug')
+    kwargs = load_kwargs('tuning')
     pops, fits = load_runs(**kwargs)
     plot_results(pops, fits, **kwargs)

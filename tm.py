@@ -1,6 +1,7 @@
 import numpy as np
 
 class TM:
+    """Basic class for a multidimensional Turing machine"""
 
     def __init__(self, trans, tape=None, state='start'):
         self.state = state
@@ -35,18 +36,20 @@ class TM:
 
         # print(self.tape)
 
-    def run(self, steps):
+    def __call__(self, steps):
+        """Runs the machine until the halt state or the given number of steps is reached. Returns the tape as an array."""
         for _ in range(steps):
             self.step()
             if self.state == 'halt':
                 break
+        return self.get_tape_as_array()
 
     def get_tape_as_array(self):
+        """Returns the current Turing tape as an array"""
         keys = np.array(list(self.tape.keys()))
         mins = np.min(keys, axis=0)
         maxs = np.max(keys, axis=0)
         tape = np.zeros(maxs-mins+1, int)
-        # tape = np.array(['_'])[tape]
         for pos in self.tape.keys():
             symbol = self.tape[pos]
             i = tuple(pos - mins)
@@ -73,16 +76,6 @@ if __name__ == '__main__':
     ]
 
     tm = TM(trans, state='U')
-
-    tm.run(11000)
-
+    tm.__call__(11000)
     tape = tm.get_tape_as_array()
-
-    # print(tape)
-
-
-
-    # print()
-
-    # print(tm.trans)
-    # print(tm.tape)
+    print(tape)

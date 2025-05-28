@@ -4,7 +4,9 @@ import numpy as np
 
 from utils import save_kwargs, save_run
 
-"""Core functions used in controlling evolution"""
+"""
+Core functions used in controlling evolution
+"""
 
 #
 # Initialization

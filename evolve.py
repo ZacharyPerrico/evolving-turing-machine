@@ -2,7 +2,9 @@ import os
 
 import numpy as np
 
-from utils import save_kwargs, save_run
+from multiprocessing import Pool, cpu_count
+
+from utils import *
 
 """
 Core functions used in controlling evolution
@@ -140,42 +142,102 @@ def simulate_run(**kwargs):
 
     return all_pops, all_fits
 
+def _simulate_and_save_test_run(args):
+    """
+    Parallel worker for (test_num, run_num).
+    """
+    test_num, run_num, test_kwargs, base_kwargs, num_tests = args
+
+    # Extract test-specific kwargs
+    test_keys = test_kwargs[0]
+    test_values = test_kwargs[test_num + 1]
+    kwargs = base_kwargs.copy()
+
+    # Update with test-specific values
+    for key, value in zip(test_keys, test_values):
+        kwargs[key] = value
+
+    # Set path and create directory (thread-safe)
+    test_name = test_values[0]
+    path = f'saves/{kwargs["name"]}/data/{test_name}'
+    os.makedirs(path, exist_ok=True)
+
+    # Assign seed and RNG
+    if kwargs['seed'] is None:
+        kwargs['seed'] = np.random.randint(0, 2**64, dtype='uint64')
+    kwargs['rng'] = np.random.default_rng(kwargs['seed'])
+
+    # Run simulation and save
+    pops, fits = simulate_run(**kwargs)
+    save_run(path, pops, fits, **kwargs)
+
+    return f"Test {test_num}, Run {run_num}, Seed {kwargs['seed']}"
+
 
 def simulate_tests(num_runs, test_kwargs, **kwargs):
     """
     Simulate all runs for all tests with different hyperparameters.
     There are four levels: [test] [run/replicant] [generation/population] [individual]
     """
-
-    # Save kwargs first in case of failure
     save_kwargs(num_runs=num_runs, test_kwargs=test_kwargs, **kwargs)
 
-    # Number of tests must be inferred and is only used within this function
     num_tests = len(test_kwargs) - 1
 
-    # TODO parallelize here
+    # Build the job list: one job per (test, run)
+    job_args = [
+        (test_num, run_num, test_kwargs, kwargs.copy(), num_tests)
+        for test_num in range(num_tests)
+        for run_num in range(num_runs)
+    ]
 
-    # Loop level 0
-    for test_num in range(num_tests):
+    if kwargs.get('verbose', 0) > 0:
+        print(f"Dispatching {len(job_args)} parallel jobs...")
 
-        # Each test is saved in its own directory
-        path = 'saves/' + kwargs['name'] + '/data/' + test_kwargs[test_num + 1][0]
-        os.makedirs(path, exist_ok=True)
+    #MODIFY cpu_count() to adjust max core count use
+    with Pool(processes=min(cpu_count(), len(job_args))) as pool:
+        results = pool.map(_simulate_and_save_test_run, job_args)
 
-        if kwargs['verbose'] > 0: print(f'Test {test_num}')
-        # Modify kwargs using the test_kwargs
-        for key, value in zip(test_kwargs[0], test_kwargs[test_num + 1]):
-            if kwargs['verbose'] > 0: print(f'{key}: {value}')
-            kwargs[key] = value
+    if kwargs.get('verbose', 0) > 0:
+        print("All test runs completed.")
+        for res in results:
+            print(res)
 
-        # Loop level 1
-        for run in range(num_runs):
-
-            # Set random seed
-            if kwargs['seed'] is None:
-                kwargs['seed'] = np.random.randint(0, 2 ** 64, dtype='uint64')
-            kwargs['rng'] = np.random.default_rng(kwargs['seed'])
-
-            # Run and save
-            pops, fits = simulate_run(**kwargs)
-            save_run(path, pops, fits, **kwargs)
+# Non-parallelized code
+# def simulate_tests(num_runs, test_kwargs, **kwargs):
+#     """
+#     Simulate all runs for all tests with different hyperparameters.
+#     There are four levels: [test] [run/replicant] [generation/population] [individual]
+#     """
+#
+#     # Save kwargs first in case of failure
+#     save_kwargs(num_runs=num_runs, test_kwargs=test_kwargs, **kwargs)
+#
+#     # Number of tests must be inferred and is only used within this function
+#     num_tests = len(test_kwargs) - 1
+#
+#     # TODO parallelize here
+#
+#     # Loop level 0
+#     for test_num in range(num_tests):
+#
+#         # Each test is saved in its own directory
+#         path = 'saves/' + kwargs['name'] + '/data/' + test_kwargs[test_num + 1][0]
+#         os.makedirs(path, exist_ok=True)
+#
+#         if kwargs['verbose'] > 0: print(f'Test {test_num}')
+#         # Modify kwargs using the test_kwargs
+#         for key, value in zip(test_kwargs[0], test_kwargs[test_num + 1]):
+#             if kwargs['verbose'] > 0: print(f'{key}: {value}')
+#             kwargs[key] = value
+#
+#         # Loop level 1
+#         for run in range(num_runs):
+#
+#             # Set random seed
+#             if kwargs['seed'] is None:
+#                 kwargs['seed'] = np.random.randint(0, 2 ** 64, dtype='uint64')
+#             kwargs['rng'] = np.random.default_rng(kwargs['seed'])
+#
+#             # Run and save
+#             pops, fits = simulate_run(**kwargs)
+#             save_run(path, pops, fits, **kwargs)

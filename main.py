@@ -55,7 +55,7 @@ if __name__ == '__main__':
         'seed': None,
         'verbose': 1, # 0: no updates, 1: generation updates, 2: all updates, 3:
         # Size
-        'num_runs': 1,
+        'num_runs': 2,
         'num_gens': 1000,
         'pop_size': 400,
         # 'max_height': 10, # The maximum height

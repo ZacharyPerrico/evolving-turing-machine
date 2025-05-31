@@ -71,13 +71,18 @@ def array_diff(a, b):
     a = np.pad(a, a_pad)
     b = np.pad(b, b_pad)
     # a = a[*[slice(0, i) for i in b.shape]]
-    # diff = np.sum(abs(a - b))
-    # a = a!=0
-    # b = b!=0
-    diff = np.sum((a!=0)!=(b!=0))
+    diff = np.sum(abs(a - b))
     return diff
 
 def pattern_diff(pop, **kwargs):
+    fits = np.empty(len(pop))
+    for i,trans in enumerate(pop):
+        tape = TM(trans)(kwargs['tm_timeout'])
+        fit = array_diff(tape!=0, kwargs['target']!=0)
+        fits[i] = fit
+    return fits
+
+def value_diff(pop, **kwargs):
     fits = np.empty(len(pop))
     for i,trans in enumerate(pop):
         tape = TM(trans)(kwargs['tm_timeout'])

@@ -183,41 +183,36 @@ def table_best(all_pops, all_fits, **kwargs):
 def plot_graph(node, layout='topo', scale=1, title=None, **kwargs):
     """Plot the node as a graph"""
 
-    def to_graph(node, verts=None, edges=None, vert_props=None, edge_props=None):
-        """Identical to Node.to_lists() but returns extra values"""
-        if verts is None:
-            node.reset_index()
-            verts, edges = [], []
-            vert_props, edge_props = [], []
-        if node.temp_index is None:
-            node.temp_index = len(verts)
-            verts.append(node.value)
-            # vert_props.append()
-            for i, child in enumerate(node.children):
-                to_graph(child, verts, edges, vert_props, edge_props)
-                edges.append((node.temp_index, child.temp_index))
-                edge_props.append(i)
-        return verts, edges, vert_props, edge_props
+    # Remove duplicates
+    node = list(set(tuple(t) for t in node))
 
-    verts, edges, vert_props, edge_props = to_graph(node)
+    verts = []
+    edges = []
+    edge_labels = {}
+
+    for t in node:
+        print(t)
+        state0, symbol0, state1, symbol1, *move = t
+        if state0 not in verts: verts.append(state0)
+        if state1 not in verts: verts.append(state1)
+        index0 = verts.index(state0)
+        index1 = verts.index(state1)
+        edge = (index0,index1)
+        if edge not in edges:
+            edges.append(edge)
+        edge_label = f'{symbol0} {symbol1} ' + ''.join(map(str,move))
+        if edge in edge_labels:
+            edge_labels[edge] += '\n' + edge_label
+        else:
+            edge_labels[edge] = edge_label
+
     # Create networkxs graph
     fig, ax = plt.subplots()
     G = nx.MultiDiGraph()
     G.add_nodes_from(range(len(verts)))
     G.add_edges_from(edges)
+    pos = nx.kamada_kawai_layout(G)
     connectionstyle = [f"arc3,rad={r}" for r in [0, .5]]
-    if layout == 'traversal':
-        # Traversal layout
-        pos = sorted([(n.temp_index, n.depth()) for n in node.nodes()])
-        ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
-        plt.xlabel('Traversal Order')
-        plt.ylabel('Depth')
-    else:
-        # Topological layout
-        for layer, ns in enumerate(nx.topological_generations(G)):
-            for n in ns:
-                G.nodes[n]["layer"] = layer
-        pos = nx.multipartite_layout(G, subset_key="layer")
     nx.draw_networkx_nodes(
         G,
         pos,
@@ -236,7 +231,7 @@ def plot_graph(node, layout='topo', scale=1, title=None, **kwargs):
     nx.draw_networkx_edges(
         G,
         pos,
-        arrowstyle=[["-|>", "->"][i] for i in edge_props],
+        arrowstyle="-|>",
         edgelist=edges, # Specify edge order
         connectionstyle=connectionstyle,
         arrowsize=20 * scale,
@@ -247,22 +242,23 @@ def plot_graph(node, layout='topo', scale=1, title=None, **kwargs):
         # alpha=0.5,
         node_size=600 * scale,
     )
-    # nx.draw_networkx_edge_labels(
-    #     G,
-    #     head,
-    #     connectionstyle=connectionstyle,
-    #     edge_labels = {edges[key]: label for key,label in enumerate(edge_props)},
-    #     alpha=0.5,
-    #     label_pos=0.0,
-    #     node_size=24000 * scale,
-    #     bbox=None,
-    # )
-    plt.suptitle(f'${node.latex()}$')
+    nx.draw_networkx_edge_labels(
+        G,
+        pos,
+        connectionstyle=connectionstyle,
+        # edge_labels = {edges[key]: label for key,label in enumerate(edge_labels)},
+        edge_labels=edge_labels,
+        alpha=0.5,
+        # label_pos=0.0,
+        # node_size=24000 * scale,
+        bbox=None,
+    )
+    # plt.suptitle(f'${node.latex()}$')
     plt.title(title)
-    if 'result_fitness_func' in kwargs:
-        plt.legend(title=f'Fitness = {kwargs['result_fitness_func']([node], **kwargs)[0]}')
-    if 'name' in kwargs:
-        plt.savefig(f'saves/{kwargs["name"]}/plots/{title}.png')
+    # if 'result_fitness_func' in kwargs:
+    #     plt.legend(title=f'Fitness = {kwargs['result_fitness_func']([node], **kwargs)[0]}')
+    # if 'name' in kwargs:
+    #     plt.savefig(f'saves/{kwargs["name"]}/plots/{title}.png')
     plt.show()
 
 
@@ -291,7 +287,7 @@ def plot_results(all_pops, all_fits, **kwargs):
     os.makedirs(path, exist_ok=True)
     print('Plotting results')
 
-    plot_min_fit(all_pops, all_fits, title='', **kwargs)
+    # plot_min_fit(all_pops, all_fits, title='', **kwargs)
 
     # Plot best
     best = get_best(all_pops, all_fits, **kwargs)
@@ -310,12 +306,23 @@ def plot_results(all_pops, all_fits, **kwargs):
     # plot_effective(all_pops, all_fits, **kwargs)
     # plot_noop_size(all_pops, all_fits, **kwargs)
 
-    for i, tm in enumerate(best):
-        title = 'Best TM (' + kwargs['test_kwargs'][i + 1][0] + ')'
-        plot_tape(tm, title=title, **kwargs)
+    # def plot_tape(trans, fitness_func=None, labels=None, title=None, legend_title=None, **kwargs):
+    # """Plot the resulting Turing tape"""
+    tape = kwargs['target']
+    # plt.title(title)
+    plt.imshow(tape)
+    plt.legend(title=kwargs['test_kwargs'][0][0])
+    # plt.savefig(f'saves/{kwargs["name"]}/plots/{title}.png')
+    plt.show()
+
+
+    # for i, tm in enumerate(best):
+    #     title = 'Best TM (' + kwargs['test_kwargs'][i + 1][0] + ')'
+    #     plot_graph(tm, title=title, **kwargs)
+    #     plot_tape(tm, title=title, **kwargs)
 
 
 if __name__ == '__main__':
-    kwargs = load_kwargs('tuning')
+    kwargs = load_kwargs('tuning_creeper')
     pops, fits = load_runs(**kwargs)
     plot_results(pops, fits, **kwargs)

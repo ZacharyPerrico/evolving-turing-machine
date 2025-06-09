@@ -4,8 +4,9 @@ import networkx as nx
 import numpy as np
 from matplotlib import pyplot as plt
 
+from lgp import _run_maze_tm
 from tm import TM
-from utils import load_kwargs, load_runs
+from save_utils import load_kwargs, load_runs
 
 """All functions relevant to plotting"""
 
@@ -52,7 +53,10 @@ def plot_nodes(nodes, result_fitness_func=None, labels=None, title=None, legend_
 
 def plot_tape(trans, fitness_func=None, labels=None, title=None, legend_title=None, **kwargs):
     """Plot the resulting Turing tape"""
-    tape = TM(trans)(kwargs['tm_timeout'])
+    # tape = TM(trans)(kwargs['tm_timeout'])
+
+    tape = _run_maze_tm(trans, **kwargs)
+
     plt.title(title)
     plt.imshow(tape)
     plt.legend(title=kwargs['test_kwargs'][0][0])
@@ -60,12 +64,19 @@ def plot_tape(trans, fitness_func=None, labels=None, title=None, legend_title=No
     plt.show()
 
 
+
+
 def plot_min_fit(all_pops, all_fits, title=None, legend_title=None, **kwargs):
     """Plot the average of the runs' minimum fitness for each test"""
     fig, ax = plt.subplots()
     x = np.array(range(all_fits.shape[2]))
     for test in range(all_fits.shape[0]):
-        y = np.mean(np.min(all_fits[test], axis=2), axis=0)
+        if kwargs['minimize_fitness']:
+            y = np.mean(np.min(all_fits[test], axis=2), axis=0)
+            plt.ylabel('Average Min Fitness Value')
+        else:
+            y = np.mean(np.max(all_fits[test], axis=2), axis=0)
+            plt.ylabel('Average Max Fitness Value')
         plt.plot(x, y, label=kwargs['test_kwargs'][test + 1][0])
         # Scatter plot all points
         # xx = x.reshape((1,len(x),1)).repeat(all_fits.shape[1], axis=0).repeat(all_fits.shape[3], axis=2).ravel()
@@ -74,7 +85,6 @@ def plot_min_fit(all_pops, all_fits, title=None, legend_title=None, **kwargs):
     plt.title(title)
     # ax.set_yscale('log')
     plt.xlabel('Generation')
-    plt.ylabel('Average Min Fitness Value')
     plt.legend(title=kwargs['test_kwargs'][0][0])
     plt.savefig(f'saves/{kwargs["name"]}/plots/Fits.png')
     plt.show()
@@ -212,7 +222,7 @@ def plot_graph(node, layout='topo', scale=1, title=None, **kwargs):
     G.add_nodes_from(range(len(verts)))
     G.add_edges_from(edges)
     pos = nx.kamada_kawai_layout(G)
-    connectionstyle = [f"arc3,rad={r}" for r in [0, .5]]
+    connectionstyle = [f"arc3,rad={r}" for r in [.5, 1]]
     nx.draw_networkx_nodes(
         G,
         pos,
@@ -287,7 +297,7 @@ def plot_results(all_pops, all_fits, **kwargs):
     os.makedirs(path, exist_ok=True)
     print('Plotting results')
 
-    # plot_min_fit(all_pops, all_fits, title='', **kwargs)
+    plot_min_fit(all_pops, all_fits, title='', **kwargs)
 
     # Plot best
     best = get_best(all_pops, all_fits, **kwargs)
@@ -306,23 +316,23 @@ def plot_results(all_pops, all_fits, **kwargs):
     # plot_effective(all_pops, all_fits, **kwargs)
     # plot_noop_size(all_pops, all_fits, **kwargs)
 
-    # def plot_tape(trans, fitness_func=None, labels=None, title=None, legend_title=None, **kwargs):
-    # """Plot the resulting Turing tape"""
-    tape = kwargs['target']
-    # plt.title(title)
-    plt.imshow(tape)
-    plt.legend(title=kwargs['test_kwargs'][0][0])
-    # plt.savefig(f'saves/{kwargs["name"]}/plots/{title}.png')
-    plt.show()
+    # # def plot_tape(trans, fitness_func=None, labels=None, title=None, legend_title=None, **kwargs):
+    # # """Plot the resulting Turing tape"""
+    # tape = kwargs['target']
+    # # plt.title(title)
+    # plt.imshow(tape)
+    # plt.legend(title=kwargs['test_kwargs'][0][0])
+    # # plt.savefig(f'saves/{kwargs["name"]}/plots/{title}.png')
+    # plt.show()
 
 
-    # for i, tm in enumerate(best):
-    #     title = 'Best TM (' + kwargs['test_kwargs'][i + 1][0] + ')'
-    #     plot_graph(tm, title=title, **kwargs)
-    #     plot_tape(tm, title=title, **kwargs)
+    for i, tm in enumerate(best):
+        title = 'Best TM (' + kwargs['test_kwargs'][i + 1][0] + ')'
+        plot_graph(tm, title=title, **kwargs)
+        plot_tape(tm, title=title, **kwargs)
 
 
 if __name__ == '__main__':
-    kwargs = load_kwargs('tuning_creeper')
+    kwargs = load_kwargs('maze')
     pops, fits = load_runs(**kwargs)
     plot_results(pops, fits, **kwargs)

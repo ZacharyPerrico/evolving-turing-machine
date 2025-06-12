@@ -5,6 +5,7 @@ import os
 import numpy as np
 
 import lgp
+from utils import to_tuple
 
 """Functions used to save and load data"""
 
@@ -21,6 +22,8 @@ def save_kwargs(**kwargs):
             for i, item in enumerate(obj):
                 obj[i] = func_to_string(item)
             return obj
+        elif type(obj) == np.ndarray:
+            return to_tuple(obj)
         elif hasattr(obj, '__name__'):
             return 'lgp.' + obj.__name__
         else:
@@ -63,7 +66,7 @@ def load_kwargs(name):
 
 def load_runs(**kwargs):
     """Returns a 4D array of all individuals and fitness values"""
-    print('Loading data')
+    # print('Loading data:')
     pops = []
     fits = []
     tests = [test[0] for test in kwargs['test_kwargs'][1:]]
@@ -72,6 +75,7 @@ def load_runs(**kwargs):
         fits.append([])
         test_path = f'./saves/{kwargs['name']}/data/{test}/*/'
         for run_file_name in glob.glob(test_path):
+            print(f'Loading {run_file_name}')
             pops[-1].append(np.load(run_file_name+'pops.npy', allow_pickle=True))
             fits[-1].append(np.load(run_file_name+'fits.npy'))
     # pops = np.array(pops, dtype=[('verts','object'),('edges','object')])

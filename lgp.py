@@ -1,4 +1,5 @@
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
+import numpy as np
 
 from tm import TM
 from utils import *
@@ -109,25 +110,50 @@ def gen_maze(shape=None, rng=np.random.default_rng(), maze=None, pos=None, init_
             gen_maze(shape, rng, maze, tuple(new_pos), False)
 
 
+# def _format_maze(maze):
+#     shape = maze.shape
+#     maze = maze.repeat(3, axis=0).repeat(3, axis=1)
+#     # Cartesian product of [-1,0,1] repeated N times
+#     shifts = np.array(np.meshgrid(*([[-1, 0, 1]] * len(shape)))).T.reshape(-1, len(shape))
+#     # Remove the row with all zeros
+#     # shifts = shifts[np.sum(shifts, axis=1) != 0]
+#     # Only keep rows with exactly one nonzero element
+#     neighbors = neighbors[np.sum(neighbors != 0, axis=1) == 1]
+#     # Give a unique value for each wall depending on its neighbors
+#     pows_two = [2 ** x for x in range(len(shifts))]
+#     walls = [np.roll(maze, shift, (0, 1)) for shift in shifts]
+#     walls = np.array(pows_two).reshape(-1, 1, 1) * walls
+#     walls = sum(walls)
+#     # Replace the original wall value of 1 for each wall
+#     maze[maze == 1] = walls[maze == 1]
+#     maze = maze[1:-1, 1:-1]
+#     return maze
+
 def _format_maze(maze):
     shape = maze.shape
     maze = maze.repeat(3, axis=0).repeat(3, axis=1)
     # Cartesian product of [-1,0,1] repeated N times
     shifts = np.array(np.meshgrid(*([[-1, 0, 1]] * len(shape)))).T.reshape(-1, len(shape))
-    # Remove the row with all zeros
-    shifts = shifts[np.sum(shifts, axis=1) != 0]
+    # Only keep rows with exactly one nonzero element
+    shifts = shifts[np.sum(shifts != 0, axis=1) == 1]
+    # Stack of all neighbors
+    walls = 1 - np.array([np.roll(maze, shift, (0, 1)) for shift in shifts])
+    # All walls missing exactly 0 neighbors
+    core = np.sum(walls, axis=0)==0
+    # All walls missing exactly 1 neighbor
+    index = np.broadcast_to(np.sum(walls, axis=0)!=1, walls.shape)
+    walls[index] = 0
     # Give a unique value for each wall depending on its neighbors
-    pows_two = [2 ** x for x in range(len(shifts))]
-    walls = [np.roll(maze, shift, (0, 1)) for shift in shifts]
-    walls = np.array(pows_two).reshape(-1, 1, 1) * walls
-    walls = sum(walls)
-    # Replace the original wall value of 1 for each wall
-    maze[maze == 1] = walls[maze == 1]
-    maze = maze[1:-1, 1:-1]
-    return maze
+    walls = np.array(range(1, len(shifts)+1)).reshape(-1, 1, 1) * walls
+    walls = np.sum(walls, axis=0)
+    # Replace core walls with the largest value
+    walls[core] = 5
+    # Trim outside
+    walls = walls[1:-1, 1:-1]
+    return walls
 
 
-def _solve_maze(maze):
+def _solve_maze(maze, start=(3,3)):
     """Solves the maze by replacing each value with the distance from the end"""
     maze = np.array(maze)
     shape = maze.shape
@@ -138,7 +164,7 @@ def _solve_maze(maze):
     # Modify maze to use the special floor and wall values
     maze = np.array([FLOOR_VALUE,WALL_VALUE])[maze]
     # Set the initial value at the start of the maze and let it spread outwards
-    maze[1,1] = 1
+    maze[start] = 1
     # Repeat until there are no empty floor values
     while FLOOR_VALUE in maze:
         # Cartesian product of [-1,0,1] repeated N times
@@ -155,10 +181,10 @@ def _solve_maze(maze):
 
 
 def _run_maze_tm(trans, **kwargs):
-    trans = trans + [
-        [state, ((-1, -1, -1), (-1, 1, -1), (-1, -1, -1)), 'halt', ((-1, -1, -1), (-1, 1, -1), (-1, -1, -1))]
-        for state in kwargs['states']
-    ]
+    # trans = trans + [
+    #     [state, ((-1, -1, -1), (-1, 1, -1), (-1, -1, -1)), 'halt', ((-1, -1, -1), (-1, 1, -1), (-1, -1, -1))]
+    #     for state in kwargs['states']
+    # ]
     tm = TM(trans)
     tm.write_tape(kwargs['target'])
     tape = tm(kwargs['tm_timeout'])
@@ -168,7 +194,7 @@ def _run_maze_tm(trans, **kwargs):
 def maze_fitness(pop, **kwargs):
     """Difference in values"""
     maze = np.array(kwargs['target'])
-    sol = np.array(kwargs['maze_sol'])
+    sol = kwargs['maze_sol']
     fits = np.empty(len(pop))
     for i, trans in enumerate(pop):
         tape = _run_maze_tm(trans, **kwargs)
@@ -243,44 +269,32 @@ def two_point_crossover(a, b, **kwargs):
 
 if __name__ == '__main__':
 
-    pass
+    maze = gen_maze((9,9))
+    maze = _format_maze(maze)
 
-    # a = [
-    #     [2,0],
-    #     [0,0],
+    maze_sol = _solve_maze((maze!=0)*1, (3,3))
+
+    # plt.imshow(maze_sol)
+    # plt.show()
+
+    # maze = to_tuple(maze)
+    # maze_sol =
+    # X=-1
+    # trans = [
+    #     ['start', [[X,X,X],[X,0,X],[X,X,X]], 'start', [[X,X,X],[X,1,X],[X,X,X]], +1, 0],
     # ]
-    #
-    # b = [
-    #     [1,2,0],
-    #     [0,0,0],
-    #     [0,0,0],
-    # ]
-    #
-    # diff = array_diff(a,b)
-    # print(diff)
-
-    maze = gen_maze((71,71))
-    # plt.imshow(m)
-    # plt.show()
-
-    # m = format_maze(m)
-    # plt.imshow(m)
-    # plt.show()
-
-    # m = _solve_maze(m)
-    # plt.imshow(m)
-    # plt.show()
-
-    X=-1
-
     trans = [
-        ['start', [[X,X,X],[X,0,X],[X,X,X]], 'start', [[X,X,X],[X,1,X],[X,X,X]], +1, 0],
+        ['start', 0, 'start', 0, +1, 0]
     ]
+    # pop = [trans] * 100
 
-    tape = _run_maze_tm(trans, tm_timeout=100, states=['start'], target=maze)
-
-    plt.imshow(tape)
-    plt.show()
-
-    fits = maze_fitness([trans], tm_timeout=100, states=['start'], target=maze)
+    # t0 = time.time()
+    # tape = _run_maze_tm(trans, tm_timeout=100, states=['start'], target=maze)
+    fits = maze_fitness(pop, tm_timeout=100, states=['start'], target=maze, maze_sol=maze_sol)
+    # t1 = time.time()
+    # total = t1-t0
     print(fits)
+
+    # times = np.array(TM.times)
+    # print(sum(times))
+    # print(times.mean())

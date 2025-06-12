@@ -184,7 +184,7 @@ def simulate_tests(num_runs, test_kwargs, **kwargs):
     There are four levels: [test] [run/replicant] [generation/population] [individual]
     """
 
-    kwargs['maze_sol'] = to_tuple(_solve_maze(kwargs['target']))
+    kwargs['maze_sol'] = _solve_maze((kwargs['target']!=0)*1)
 
     # Save kwargs first in case of failure
     save_kwargs(num_runs=num_runs, test_kwargs=test_kwargs, **kwargs)

@@ -16,7 +16,7 @@ def cartesian_prod(*args):
 
 def to_tuple(a):
     """Converts an ndarray into tuples."""
-    try:
+    if type(a) == np.ndarray:
         return tuple(to_tuple(i) for i in a)
-    except TypeError:
+    else:
         return int(a)

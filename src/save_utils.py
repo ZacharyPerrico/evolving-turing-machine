@@ -28,7 +28,7 @@ def save_kwargs(**kwargs):
             return 'lgp.' + obj.__name__
         else:
             return obj
-    path = 'saves/' + kwargs['name'] + '/'
+    path = f'../saves/{kwargs['name']}/'
     os.makedirs(path, exist_ok=True)
     with open(path + 'kwargs.json', 'w') as f:
         json.dump(func_to_string(kwargs.copy()), f, indent=4)
@@ -36,7 +36,7 @@ def save_kwargs(**kwargs):
 
 def save_run(path, pops, fits, **kwargs):
     # Each test is saved in its own directory which is passed through the path
-    path = path + '/' + str(kwargs['seed']) + '/'
+    path = f'{path}/{kwargs["seed"]}/'
     print('Saving run to ' + path)
     os.makedirs(path, exist_ok=True)
     np.save(path + 'pops', pops)
@@ -57,7 +57,7 @@ def load_kwargs(name):
         elif type(obj) is type('') and obj.startswith('lgp.'):
             return getattr(lgp, obj[4:])
         return obj
-    path = 'saves/' + name + '/'
+    path = '../saves/' + name + '/'
     print('Loading kwargs')
     with open(path + 'kwargs.json', 'rb') as f:
         kwargs = string_to_func(json.load(f))
@@ -73,7 +73,7 @@ def load_runs(**kwargs):
     for test in tests:
         pops.append([])
         fits.append([])
-        test_path = f'./saves/{kwargs['name']}/data/{test}/*/'
+        test_path = f'../saves/{kwargs['name']}/data/{test}/*/'
         for run_file_name in glob.glob(test_path):
             print(f'Loading {run_file_name}')
             pops[-1].append(np.load(run_file_name+'pops.npy', allow_pickle=True))

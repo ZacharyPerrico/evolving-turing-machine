@@ -1,12 +1,7 @@
-import os
-
-import numpy as np
-
 from multiprocessing import Pool, cpu_count
 
 from lgp import _solve_maze
 from save_utils import *
-from utils import to_tuple
 
 """
 Core functions used in controlling evolution

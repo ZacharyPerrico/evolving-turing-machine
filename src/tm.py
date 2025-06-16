@@ -14,35 +14,41 @@ class TM:
         self.tape = tape or {}
         self.N = len(trans[0][4])
         self.head_pos = (0,) * self.N
-        self.trans = {}
 
-        # Single symbol head
-        if type(trans[0][1]) not in (tuple, list, np.ndarray):
+        # Transition array, Single symbol head
+        if type(trans) == np.ndarray:
+            self.head_shape = None
+            self.trans = trans
+            self.head_pos = (0,) * self.N
+
+        # Transition dict, Single symbol head
+        elif type(trans[0][1]) not in (tuple, list, np.ndarray):
             self.head_shape = None
             self.trans = {(t[0],t[1]): tuple(t[2:]) for t in trans}
+            self.N = len(trans[0][4])
+            self.head_pos = (0,) * self.N
 
-        # Multi symbol head
+        # Transition dict, Multi symbol head
+        # Most of this code is for parsing the wildcard symbols: ANY and WALL
         else:
+            self.trans = {}
             self.head_shape = np.array(trans[0][1]).shape
+            self.N = len(trans[0][4])
+            self.head_pos = (0,) * self.N
             for transition in trans:
-
                 symbol_blocks = np.array(transition[1])
                 symbol_block_shape = symbol_blocks.shape
                 symbol_blocks = symbol_blocks.ravel()
                 symbol_blocks = [[i] if i != TM.ANY else [TM.WALL, 0, 1] for i in symbol_blocks]
                 symbol_blocks = cartesian_prod(*symbol_blocks)
                 symbol_blocks = [i.reshape(symbol_block_shape) for i in symbol_blocks]
-
                 for symbol_block in symbol_blocks:
                     new_symbol_block = np.array(transition[3])
                     # TM.ANY is replaced with the value in replaced with the value in the original symbol block
                     new_symbol_block[new_symbol_block == TM.ANY] = symbol_block[new_symbol_block == TM.ANY]
-
                     new_symbol_block[symbol_block == TM.WALL] = TM.WALL
-
                     new_symbol_block = to_tuple(new_symbol_block)
                     symbol_blocks = to_tuple(symbol_block)
-
                     self.trans[(transition[0], symbol_blocks)] = (transition[2], new_symbol_block, *transition[4:])
 
 
@@ -139,7 +145,7 @@ class TM:
 
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 
     # trans = [
     #     ['U', 0, 'R', 1, ( 1,  0)],
@@ -154,6 +160,8 @@ if __name__ == '__main__':
     # tm = TM(trans, state='U')
     # tape = tm(11000)
     # print(tm)
+
+
 
 
     # X=TM.ANY

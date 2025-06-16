@@ -1,5 +1,5 @@
-import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import pyplot as plt
 
 from tm import TM
 from utils import *
@@ -13,32 +13,13 @@ Functions used in the evolution of Turing Machine based genetic programming
 # Initialization Functions
 #
 
-# def random_transition(**kwargs):
-#     """Helper function for generating only a single transition"""
-#     return [
-#         choice(kwargs['states'], kwargs['rng']),
-#         choice(kwargs['symbols'], kwargs['rng']),
-#         choice(kwargs['states'], kwargs['rng']),
-#         choice(kwargs['symbols'], kwargs['rng']),
-#         *[choice(kwargs['moves'], kwargs['rng']) for _ in range(kwargs['tape_dim'])]
-#     ]
-
-
-def _random_transition(**kwargs):
-    """Helper function for generating only a single transition"""
-    return [
-        choice(kwargs['states'], kwargs['rng']),
-        to_tuple(kwargs['rng'].choice(kwargs['symbols'], kwargs['head_shape'])),
-        choice(kwargs['states'], kwargs['rng']),
-        to_tuple(kwargs['rng'].choice(kwargs['symbols'], kwargs['head_shape'])),
-        *[choice(kwargs['moves'], kwargs['rng']) for _ in range(kwargs['tape_dim'])]
-    ]
-
-
-def random_trans(**kwargs):
+def random_trans_array(shape=None, rng=np.random.default_rng(), **kwargs):
     """Generate a random list of transitions"""
-    init_len = kwargs['rng'].integers(kwargs['init_min_len'], kwargs['init_max_len']+1)
-    trans = [_random_transition(**kwargs) for _ in range(init_len)]
+    shape = [len(kwargs['states']), len(kwargs['symbols'])] if shape is None else shape
+    new_states = rng.choice(kwargs['states'], shape + [1])
+    new_symbols = rng.choice(kwargs['symbols'], shape + [1])
+    new_moves = rng.choice(kwargs['moves'], shape + [kwargs['tape_dim']])
+    trans = np.concat((new_states, new_symbols, new_moves), axis=-1)
     return trans
 
 
@@ -187,6 +168,7 @@ def _run_maze_tm(trans, **kwargs):
     # ]
     tm = TM(trans)
     tm.write_tape(kwargs['target'])
+    tm.head_pos = (3,3)
     tape = tm(kwargs['tm_timeout'])
     return tape
 
@@ -211,24 +193,19 @@ def maze_fitness(pop, **kwargs):
 # Mutation Functions
 #
 
-def point_mutation(trans, **kwargs):
+def _random_transition_array(rng=np.random.default_rng(), **kwargs):
+    """Helper function for generating only a single transition"""
+    shape = [len(kwargs['states']), len(kwargs['symbols'])]
+    new_states = rng.choice(kwargs['states'], shape + [1])
+    new_symbols = rng.choice(kwargs['symbols'], shape + [1])
+    new_moves = rng.choice(kwargs['moves'], shape + [kwargs['tape_dim']])
+    transition = np.concat((new_states, new_symbols, new_moves), axis=2)
+    return transition
+
+
+
+def macro_mutation(trans, rng=np.random.default_rng(), **kwargs):
     """Randomly change a value in a random transition"""
-    # Duplicate the original transitions
-    trans = [t.copy() for t in trans]
-    # Select a random transition
-    index = kwargs['rng'].integers(len(trans))
-    t = trans[index]
-    # Select a random argument within the transition
-    sub_index = kwargs['rng'].integers(len(t))
-    # Change the sub parameter
-    if sub_index == 0 or sub_index == 2:
-        trans[index][sub_index] = choice(kwargs['states'], kwargs['rng'])
-    elif sub_index == 1 or sub_index == 3:
-        # trans[index][sub_index] = choice(kwargs['symbols'], kwargs['rng'])
-        trans[index][sub_index] = to_tuple(kwargs['rng'].choice(kwargs['symbols'], kwargs['head_shape']))
-    else:
-        trans[index][sub_index] = choice(kwargs['moves'], kwargs['rng'])
-    return trans
 
 
 #
@@ -269,13 +246,27 @@ def two_point_crossover(a, b, **kwargs):
 
 if __name__ == '__main__':
 
-    maze = gen_maze((9,9))
-    maze = _format_maze(maze)
+    t = random_trans_array(shape=[], states=[0,1], symbols=[2,3], moves=[-1,-2], tape_dim=2)
 
-    maze_sol = _solve_maze((maze!=0)*1, (3,3))
+    print(t)
 
+    # maze = gen_maze((9,9))
+    # maze = _format_maze(maze)
+    #
+    # maze_sol = _solve_maze((maze!=0)*1, (3,3))
+    #
     # plt.imshow(maze_sol)
     # plt.show()
+
+    # t = np.zeros((2,2,3))
+    #
+    # print(t)
+    #
+    # print(t[0,1])
+
+    # m = [
+    #     [[],[]],
+    # ]
 
     # maze = to_tuple(maze)
     # maze_sol =
@@ -283,17 +274,17 @@ if __name__ == '__main__':
     # trans = [
     #     ['start', [[X,X,X],[X,0,X],[X,X,X]], 'start', [[X,X,X],[X,1,X],[X,X,X]], +1, 0],
     # ]
-    trans = [
-        ['start', 0, 'start', 0, +1, 0]
-    ]
+    # trans = [
+    #     ['start', 0, 'start', 0, +1, 0]
+    # ]
     # pop = [trans] * 100
 
     # t0 = time.time()
     # tape = _run_maze_tm(trans, tm_timeout=100, states=['start'], target=maze)
-    fits = maze_fitness(pop, tm_timeout=100, states=['start'], target=maze, maze_sol=maze_sol)
+    # fits = maze_fitness(pop, tm_timeout=100, states=['start'], target=maze, maze_sol=maze_sol)
     # t1 = time.time()
     # total = t1-t0
-    print(fits)
+    # print(fits)
 
     # times = np.array(TM.times)
     # print(sum(times))

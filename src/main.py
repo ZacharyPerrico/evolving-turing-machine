@@ -119,29 +119,44 @@ from save_utils import load_runs
 #     ],
 # }
 
+spiral = np.array([
+    [1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,0,1],
+    [1,0,1,1,1,1,1,1,1,0,1],
+    [1,0,1,0,0,0,0,0,1,0,1],
+    [1,0,1,0,1,1,1,0,1,0,1],
+    [1,0,1,0,1,0,0,0,1,0,1],
+    [1,0,1,0,1,1,1,1,1,0,1],
+    [1,0,1,0,0,0,0,0,0,0,1],
+    [1,0,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1],
+])
+
 kwargs = {
-    'name': 'maze_0',  # Folder to contain all results
+    'name': 'maze_spiral_0',  # Folder to contain all results
     'seed': None,
     'verbose': 1,  # 0: no updates, 1: generation updates, 2: all updates, 3:
-    'parallelize': not True,
+    'parallelize': True,
     # Size
     'num_runs': 16,
-    'num_gens': 100,
+    'num_gens': 200,
     'pop_size': 1000,
     # Turing Machine Specifications
     'tape_dim': 2,  # Dimensionality of the Turing tape
-    'tm_timeout': 100,  # Number of TM iterations before forcing a halting state
+    'tm_timeout': 200,  # Number of TM iterations before forcing a halting state
     'head_shape': (1, 1),
     'states': ['start'] + [str(i) for i in range(1)],
     'symbols': list(range(5)),
     'moves': [-1, 0, 1],
     # Initialization
     'init_individual_func': random_trans,  # Function used to generate the initial population
-    'init_min_len': 50,
-    'init_max_len': 100,
+    'init_min_len': 5,
+    'init_max_len': 10,
     # Evaluation
     'fitness_func': maze_fitness,
-    'target': _format_maze(gen_maze((9, 9))),
+    'target': _format_maze(gen_maze((15, 15))),
+    # 'target': _format_maze(maze),
     'minimize_fitness': False,
     # Selection
     'keep_parents': 2,  # Elitism, must be even

@@ -4,12 +4,14 @@ import networkx as nx
 import numpy as np
 from matplotlib import pyplot as plt
 
-from lgp import _run_maze_tm, gen_maze, _solve_maze, maze_fitness, _format_maze
-from tm import TM
-from save_utils import load_kwargs, load_runs
+from src.genetics.tmgp import _run_maze_tm, maze_fitness
+from src.utils.save import load_kwargs, load_runs
 
 """All functions relevant to plotting"""
 
+#
+# Plotting For Evolution Based Classes
+#
 
 def plot_nodes(nodes, result_fitness_func=None, labels=None, title=None, legend_title=None, **kwargs):
     """Plot all given nodes and the fitness function"""
@@ -51,13 +53,91 @@ def plot_nodes(nodes, result_fitness_func=None, labels=None, title=None, legend_
     plt.show()
 
 
-def plot_tape(trans, fitness_func=None, labels=None, title=None, legend_title=None, **kwargs):
+def plot_graph(node, layout='topo', scale=1, title=None, **kwargs):
+    """Plot the node as a graph"""
+
+    # Remove duplicates
+    # node = list(set(tuple(t) for t in node))
+
+    verts = []
+    edges = []
+    edge_labels = {}
+
+    for t in node:
+        print(t)
+        state0, symbol0, state1, symbol1, *move = t
+        if state0 not in verts: verts.append(state0)
+        if state1 not in verts: verts.append(state1)
+        index0 = verts.index(state0)
+        index1 = verts.index(state1)
+        edge = (index0,index1)
+        if edge not in edges:
+            edges.append(edge)
+        edge_label = f'{symbol0} {symbol1} ' + ''.join(map(str,move))
+        if edge in edge_labels:
+            edge_labels[edge] += '\n' + edge_label
+        else:
+            edge_labels[edge] = edge_label
+
+    # Create networkxs graph
+    fig, ax = plt.subplots()
+    G = nx.MultiDiGraph()
+    G.add_nodes_from(range(len(verts)))
+    G.add_edges_from(edges)
+    pos = nx.kamada_kawai_layout(G)
+    connectionstyle = [f"arc3,rad={r}" for r in [.5, 1]]
+    nx.draw_networkx_nodes(
+        G,
+        pos,
+        nodelist=range(len(verts)),
+        node_color='white',
+        edgecolors='black',
+        node_size=600 * scale,
+    )
+    nx.draw_networkx_labels(
+        G,
+        pos,
+        labels={key: vert for key, vert in enumerate(verts)},
+        font_color='black',
+        font_size=10 * scale,
+    )
+    nx.draw_networkx_edges(
+        G,
+        pos,
+        arrowstyle="-|>",
+        edgelist=edges, # Specify edge order
+        connectionstyle=connectionstyle,
+        arrowsize=20 * scale,
+        # edge_color = edge_props,
+        # edge_cmap = plt.cm.tab10,
+        # edge_vmax = 9,
+        width=2 * scale,
+        # alpha=0.5,
+        node_size=600 * scale,
+    )
+    nx.draw_networkx_edge_labels(
+        G,
+        pos,
+        connectionstyle=connectionstyle,
+        # edge_labels = {edges[key]: label for key,label in enumerate(edge_labels)},
+        edge_labels=edge_labels,
+        alpha=0.5,
+        # label_pos=0.0,
+        # node_size=24000 * scale,
+        bbox=None,
+    )
+    # plt.suptitle(f'${node.latex()}$')
+    plt.title(title)
+    # if 'result_fitness_func' in kwargs:
+    #     plt.legend(title=f'Fitness = {kwargs['result_fitness_func']([node], **kwargs)[0]}')
+    # if 'name' in kwargs:
+    #     plt.savefig(f'saves/{kwargs["name"]}/plots/{title}.png')
+    plt.show()
+
+
+def plot_tape(tm, fitness_func=None, labels=None, title=None, legend_title=None, **kwargs):
     """Plot the resulting Turing tape"""
-    # tape = TM(trans)(kwargs['tm_timeout'])
-
-    tape = _run_maze_tm(trans, **kwargs)
-    fit = maze_fitness([trans], **kwargs)[0]
-
+    tape = tm.get_tape_as_array()
     # plt.title(fit)
     plt.title(title)
     plt.scatter(1,1, label=fit)
@@ -69,7 +149,15 @@ def plot_tape(trans, fitness_func=None, labels=None, title=None, legend_title=No
     plt.show()
 
 
+def plot_maze(trans, fitness_func=None, labels=None, title=None, legend_title=None, **kwargs):
+    tape = _run_maze_tm(trans, **kwargs)
+    fit = maze_fitness([trans], **kwargs)[0]
+    plot_tape(tm, **kwargs)
 
+
+#
+# Data based plotting
+#
 
 def plot_min_fit(all_pops, all_fits, title=None, legend_title=None, **kwargs):
     """Plot the average of the runs' minimum fitness for each test"""
@@ -192,92 +280,6 @@ def table_best(all_pops, all_fits, **kwargs):
 
 
 #
-# Graphs
-#
-
-def plot_graph(node, layout='topo', scale=1, title=None, **kwargs):
-    """Plot the node as a graph"""
-
-    # Remove duplicates
-    # node = list(set(tuple(t) for t in node))
-
-    verts = []
-    edges = []
-    edge_labels = {}
-
-    for t in node:
-        print(t)
-        state0, symbol0, state1, symbol1, *move = t
-        if state0 not in verts: verts.append(state0)
-        if state1 not in verts: verts.append(state1)
-        index0 = verts.index(state0)
-        index1 = verts.index(state1)
-        edge = (index0,index1)
-        if edge not in edges:
-            edges.append(edge)
-        edge_label = f'{symbol0} {symbol1} ' + ''.join(map(str,move))
-        if edge in edge_labels:
-            edge_labels[edge] += '\n' + edge_label
-        else:
-            edge_labels[edge] = edge_label
-
-    # Create networkxs graph
-    fig, ax = plt.subplots()
-    G = nx.MultiDiGraph()
-    G.add_nodes_from(range(len(verts)))
-    G.add_edges_from(edges)
-    pos = nx.kamada_kawai_layout(G)
-    connectionstyle = [f"arc3,rad={r}" for r in [.5, 1]]
-    nx.draw_networkx_nodes(
-        G,
-        pos,
-        nodelist=range(len(verts)),
-        node_color='white',
-        edgecolors='black',
-        node_size=600 * scale,
-    )
-    nx.draw_networkx_labels(
-        G,
-        pos,
-        labels={key: vert for key, vert in enumerate(verts)},
-        font_color='black',
-        font_size=10 * scale,
-    )
-    nx.draw_networkx_edges(
-        G,
-        pos,
-        arrowstyle="-|>",
-        edgelist=edges, # Specify edge order
-        connectionstyle=connectionstyle,
-        arrowsize=20 * scale,
-        # edge_color = edge_props,
-        # edge_cmap = plt.cm.tab10,
-        # edge_vmax = 9,
-        width=2 * scale,
-        # alpha=0.5,
-        node_size=600 * scale,
-    )
-    nx.draw_networkx_edge_labels(
-        G,
-        pos,
-        connectionstyle=connectionstyle,
-        # edge_labels = {edges[key]: label for key,label in enumerate(edge_labels)},
-        edge_labels=edge_labels,
-        alpha=0.5,
-        # label_pos=0.0,
-        # node_size=24000 * scale,
-        bbox=None,
-    )
-    # plt.suptitle(f'${node.latex()}$')
-    plt.title(title)
-    # if 'result_fitness_func' in kwargs:
-    #     plt.legend(title=f'Fitness = {kwargs['result_fitness_func']([node], **kwargs)[0]}')
-    # if 'name' in kwargs:
-    #     plt.savefig(f'saves/{kwargs["name"]}/plots/{title}.png')
-    plt.show()
-
-
-#
 # Control
 #
 
@@ -323,15 +325,14 @@ def plot_results(all_pops, all_fits, **kwargs):
 
     for i, tm in enumerate(best):
         title = 'Best TM (' + kwargs['test_kwargs'][i + 1][0] + ')'
-        plot_graph(tm, title=title+'_0', **kwargs)
+        # plot_graph(tm, title=title+'_0', **kwargs)
         plot_tape(tm, title=title, **kwargs)
 
 
 if __name__ == '__main__':
-    kwargs = load_kwargs('maze_spiral')
+    kwargs = load_kwargs('array_maze_spiral', '../../saves')
     kwargs['target'] = np.array(kwargs['target'])
     kwargs['maze_sol'] = np.array(kwargs['maze_sol'])
-    # from main import kwargs
     pops, fits = load_runs(**kwargs)
     plot_results(pops, fits, **kwargs)
 

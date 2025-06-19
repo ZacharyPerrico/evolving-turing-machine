@@ -1,7 +1,6 @@
-import time
-
 import numpy as np
-from utils import *
+from src.utils.utils import to_tuple, cartesian_prod
+
 
 class TM:
     """Basic class for a multidimensional Turing machine"""
@@ -9,16 +8,15 @@ class TM:
     ANY = -2 # Reserved value replaced with both a 0 and 1
     WALL = -1 # Reserved value that the machine cannot change on the tape
 
-    def __init__(self, trans, tape=None, state='start'):
+    def __init__(self, trans, tape=None, state=0):
         self.state = state
         self.tape = tape or {}
-        self.N = len(trans[0][4])
-        self.head_pos = (0,) * self.N
 
         # Transition array, Single symbol head
         if type(trans) == np.ndarray:
             self.head_shape = None
             self.trans = trans
+            self.N = len(trans[0,0]) - 2 # Length of transition from (0,0) minus the values for state and symbol
             self.head_pos = (0,) * self.N
 
         # Transition dict, Single symbol head
@@ -81,7 +79,6 @@ class TM:
             self.tape[self.head_pos] = symbol
         # Multi symbol head
         else:
-            # symbol = np.empty(self.head_shape)
             symbol = np.array(symbol)
             points = cartesian_prod(*[list(range(i)) for i in symbol.shape])
             for point in points:
@@ -94,12 +91,15 @@ class TM:
         """Iterate the Turing Machine by one full step. Code is independent of reading and writing the tape."""
 
         # Current state and symbol
-        # This is the hashed value used as a key by the transitions
+        # If the transition is a dict, this value is the key
+        # If the transition is an ndarray, this value is used as an index
         state_and_symbol = (self.state, self.read_tape())
 
         # Determine next state, symbol, and how the head should move
         # Halt the machine if a transition is not defined
-        if state_and_symbol in self.trans:
+        if type(self.trans) != dict and np.less(state_and_symbol, self.trans.shape[:2]).all():
+            new_state, new_symbol, *move = self.trans[state_and_symbol]
+        elif type(self.trans) == dict and state_and_symbol in self.trans:
             new_state, new_symbol, move = self.trans[state_and_symbol]
         else:
             new_state = 'halt'
@@ -132,7 +132,7 @@ class TM:
         return string
 
 
-    def __call__(self, steps):
+    def run(self, steps):
         """Runs the machine until the halt state or the given number of steps is reached. Returns the tape as an array."""
         for _ in range(steps):
             self.step()
@@ -145,7 +145,7 @@ class TM:
 
 
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
 
     # trans = [
     #     ['U', 0, 'R', 1, ( 1,  0)],
@@ -160,6 +160,20 @@ class TM:
     # tm = TM(trans, state='U')
     # tape = tm(11000)
     # print(tm)
+
+    trans = np.empty((4,2,4), int)
+    trans[(0, 0)] = [1, 1,  1,  0]
+    trans[(1, 0)] = [2, 1,  0, -1]
+    trans[(2, 0)] = [3, 1, -1,  0]
+    trans[(3, 0)] = [0, 1,  0,  1]
+    trans[(0, 1)] = [3, 0, -1,  0]
+    trans[(1, 1)] = [0, 0,  0,  1]
+    trans[(2, 1)] = [1, 0,  1,  0]
+    trans[(3, 1)] = [2, 0,  0, -1]
+    tm = TM(trans)
+    tape = tm.run(11000)
+    print(tm)
+    # print(trans)
 
 
 

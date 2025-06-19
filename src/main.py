@@ -1,8 +1,7 @@
 from evolve import simulate_tests
-from lgp import *
-from lgp import _format_maze
-from plot import plot_results
-from save_utils import load_runs
+from src.utils.plot import plot_results
+from src.utils.save import load_runs, save_kwargs
+from genetics import *
 
 # kwargs = {
 #     'name': 'debug',
@@ -122,62 +121,123 @@ from save_utils import load_runs
 spiral = np.array([
     [1,1,1,1,1,1,1,1,1,1,1],
     [1,0,0,0,0,0,0,0,0,0,1],
-    [1,0,1,1,1,1,1,1,1,0,1],
-    [1,0,1,0,0,0,0,0,1,0,1],
-    [1,0,1,0,1,1,1,0,1,0,1],
-    [1,0,1,0,1,0,0,0,1,0,1],
-    [1,0,1,0,1,1,1,1,1,0,1],
+    [1,1,1,1,1,1,1,1,1,0,1],
     [1,0,1,0,0,0,0,0,0,0,1],
-    [1,0,1,1,1,1,1,1,1,1,1],
+    [1,0,1,0,1,1,1,1,1,0,1],
+    [1,0,1,0,1,0,0,0,1,0,1],
+    [1,0,1,0,1,1,1,0,1,0,1],
+    [1,0,1,0,0,0,0,0,1,0,1],
+    [1,0,1,1,1,1,1,1,1,0,1],
     [1,0,0,0,0,0,0,0,0,0,1],
     [1,1,1,1,1,1,1,1,1,1,1],
-])
+
+]).T
+
+# kwargs = {
+#     'name': 'array_maze_spiral',  # Folder to contain all results
+#     'seed': None,
+#     'verbose': 1,  # 0: no updates, 1: generation updates, 2: all updates, 3:
+#     'parallelize': True,
+#     # Size
+#     'num_runs': 16,
+#     'num_gens': 200,
+#     'pop_size': 10, #1000
+#     # Turing Machine Specifications
+#     'tape_dim': 2,  # Dimensionality of the Turing tape
+#     'tm_timeout': 200,  # Number of TM iterations before forcing a halting state
+#     'head_shape': (1, 1),
+#     'states': ['start'] + [str(i) for i in range(1)],
+#     'symbols': list(range(5)),
+#     'moves': [-1, 0, 1],
+#     # Initialization
+#     'init_individual_func': random_trans,  # Function used to generate the initial population
+#     'init_min_len': 5,
+#     'init_max_len': 10,
+#     # Evaluation
+#     'fitness_func': maze_fitness,
+#     'target': _format_maze(gen_maze((15, 15))),
+#     # 'target': _format_maze(maze),
+#     'minimize_fitness': False,
+#     # Selection
+#     'keep_parents': 2,  # Elitism, must be even
+#     'k': 2,  # Number of randomly chosen parents for each tournament
+#     # Repopulation
+#     'p_c': 0.7,  # Probability of crossover
+#     'crossover_func': one_point_crossover,
+#     'mutate_funcs': [
+#         [point_mutation, 0.7],
+#     ],
+#     # Tests
+#     'test_kwargs': [
+#         ['Crossover, Mutation', 'p_c', 'mutate_funcs'],
+#         *[
+#             [f'{pc} {pt}', pc, [[point_mutation, pt]]]
+#             # for pc in [.3,.5,.7,.9]
+#             # for pt in [.3,.5,.7,.9]
+#             for pc in [.7,]
+#             for pt in [.5,]
+#         ]
+#     ],
+#     # 'test_kwargs': [
+#     #     ['States, Symbols', 'states', 'symbols'],
+#     #     *[
+#     #         [f'{states} {symbols}', ['start'] + [str(i) for i in range(states)],
+#     #          [TM.ANY] + list(range(symbols))]
+#     #         # for states in range(0, 4, 1)
+#     #         # for symbols in range(2, 6, 1)
+#     #         for states in [1]
+#     #         for symbols in [2]
+#     #     ]
+#     # ],
+# }
 
 kwargs = {
-    'name': 'maze_spiral_0',  # Folder to contain all results
+    'name': 'array_maze_spiral',  # Folder to contain all results
     'seed': None,
     'verbose': 1,  # 0: no updates, 1: generation updates, 2: all updates, 3:
     'parallelize': True,
+    'saves_path': '../saves',
     # Size
-    'num_runs': 16,
-    'num_gens': 200,
-    'pop_size': 1000,
+    'num_runs': 2,
+    'num_gens': 50, # 20
+    'pop_size': 10, #1000
     # Turing Machine Specifications
     'tape_dim': 2,  # Dimensionality of the Turing tape
     'tm_timeout': 200,  # Number of TM iterations before forcing a halting state
     'head_shape': (1, 1),
-    'states': ['start'] + [str(i) for i in range(1)],
+    'states': list(range(2)),
     'symbols': list(range(5)),
     'moves': [-1, 0, 1],
     # Initialization
-    'init_individual_func': random_trans,  # Function used to generate the initial population
+    'init_individual_func': random_trans_array,  # Function used to generate the initial population
     'init_min_len': 5,
     'init_max_len': 10,
     # Evaluation
     'fitness_func': maze_fitness,
-    'target': _format_maze(gen_maze((15, 15))),
-    # 'target': _format_maze(maze),
+    # 'target': _format_maze(gen_maze((15, 15))),
+    'target': format_maze(spiral),
     'minimize_fitness': False,
     # Selection
     'keep_parents': 2,  # Elitism, must be even
     'k': 2,  # Number of randomly chosen parents for each tournament
     # Repopulation
-    'p_c': 0.7,  # Probability of crossover
-    'crossover_func': one_point_crossover,
+    'p_c': 0.0,  # Probability of crossover
+    'crossover_func': 0,
     'mutate_funcs': [
-        [point_mutation, 0.7],
+        [macro_mutation, 0.7],
     ],
     # Tests
-    'test_kwargs': [
-        ['Crossover, Mutation', 'p_c', 'mutate_funcs'],
-        *[
-            [f'{pc} {pt}', pc, [[point_mutation, pt]]]
-            # for pc in [.3,.5,.7,.9]
-            # for pt in [.3,.5,.7,.9]
-            for pc in [.7,]
-            for pt in [.5,]
-        ]
-    ],
+    'test_kwargs': [['Examples'],['Example 0']],
+    # 'test_kwargs': [
+    #     ['Crossover, Mutation', 'p_c', 'mutate_funcs'],
+    #     *[
+    #         [f'{pc} {pt}', pc, [[macro_mutation, pt]]]
+    #         # for pc in [.3,.5,.7,.9]
+    #         # for pt in [.3,.5,.7,.9]
+    #         for pc in [0,]
+    #         for pt in [.5,]
+    #     ]
+    # ],
     # 'test_kwargs': [
     #     ['States, Symbols', 'states', 'symbols'],
     #     *[
@@ -193,6 +253,8 @@ kwargs = {
 
 
 if __name__ == '__main__':
+    kwargs['maze_sol'] = solve_maze((kwargs['target'] != 0) * 1)
+    save_kwargs(**kwargs)
     simulate_tests(**kwargs)
     pops, fits = load_runs(**kwargs)
     plot_results(pops, fits, **kwargs)

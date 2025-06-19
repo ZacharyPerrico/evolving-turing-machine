@@ -4,12 +4,12 @@ import os
 
 import numpy as np
 
-import lgp
-from utils import to_tuple
+from src.utils.utils import to_tuple
 
 """Functions used to save and load data"""
 
 def save_kwargs(**kwargs):
+    GP_FILE = 'src.genetics'
     def func_to_string(obj):
         """Recursively replace functions with its name preceded by 'gp.'"""
         if type(obj) == dict:
@@ -25,10 +25,10 @@ def save_kwargs(**kwargs):
         elif type(obj) == np.ndarray:
             return to_tuple(obj)
         elif hasattr(obj, '__name__'):
-            return 'lgp.' + obj.__name__
+            return f'{GP_FILE}.{obj.__name__}'
         else:
             return obj
-    path = f'../saves/{kwargs['name']}/'
+    path = f'{kwargs['saves_path']}/{kwargs['name']}/'
     os.makedirs(path, exist_ok=True)
     with open(path + 'kwargs.json', 'w') as f:
         json.dump(func_to_string(kwargs.copy()), f, indent=4)
@@ -45,7 +45,8 @@ def save_run(path, pops, fits, **kwargs):
     np.save(path + 'fits', fits)
 
 
-def load_kwargs(name):
+def load_kwargs(name, saves_path):
+    GP_FILE = 'src.genetics'
     def string_to_func(obj):
         """Recursively replace strings preceded by $ to a function of the same name from gp"""
         if type(obj) is dict:
@@ -54,13 +55,16 @@ def load_kwargs(name):
         elif type(obj) is list:
             for i, item in enumerate(obj):
                 obj[i] = string_to_func(item)
-        elif type(obj) is type('') and obj.startswith('lgp.'):
-            return getattr(lgp, obj[4:])
+        elif type(obj) is type('') and obj.startswith(GP_FILE + '.'):
+            # module = __import__(GP_FILE)
+            import src.genetics as module
+            return getattr(module, obj[len(GP_FILE) + 1:])
         return obj
-    path = '../saves/' + name + '/'
+    path = f'{saves_path}/{name}/'
     print('Loading kwargs')
     with open(path + 'kwargs.json', 'rb') as f:
         kwargs = string_to_func(json.load(f))
+    kwargs['saves_path'] = saves_path
     return kwargs
 
 
@@ -73,7 +77,7 @@ def load_runs(**kwargs):
     for test in tests:
         pops.append([])
         fits.append([])
-        test_path = f'../saves/{kwargs['name']}/data/{test}/*/'
+        test_path = f'{kwargs['saves_path']}/{kwargs['name']}/data/{test}/*/'
         for run_file_name in glob.glob(test_path):
             print(f'Loading {run_file_name}')
             pops[-1].append(np.load(run_file_name+'pops.npy', allow_pickle=True))

@@ -1,8 +1,7 @@
 import numpy as np
-from matplotlib import pyplot as plt
 
-from tm import TM
-from utils import *
+from src.genetics.classes.tm import TM
+from src.utils.utils import choice
 
 """
 Functions used in the evolution of Turing Machine based genetic programming
@@ -25,6 +24,7 @@ def random_trans_array(shape=None, rng=np.random.default_rng(), **kwargs):
 
 #
 # Fitness Functions
+# Pattern Matching
 #
 
 def _array_diff(a, b):
@@ -45,7 +45,7 @@ def diff_zeros(pop, **kwargs):
     """Difference in zeros"""
     fits = np.empty(len(pop))
     for i,trans in enumerate(pop):
-        tape = TM(trans)(kwargs['tm_timeout'])
+        tape = TM(trans).run(kwargs['tm_timeout'])
         fit = _array_diff(tape != 0, np.array(kwargs['target']) != 0)
         fits[i] = fit
     return fits
@@ -55,11 +55,16 @@ def diff_values(pop, **kwargs):
     """Difference in values"""
     fits = np.empty(len(pop))
     for i,trans in enumerate(pop):
-        tape = TM(trans)(kwargs['tm_timeout'])
+        tape = TM(trans).run(kwargs['tm_timeout'])
         fit = _array_diff(tape, kwargs['target'])
         fits[i] = fit
     return fits
 
+
+#
+# Fitness Functions
+# Maze Solving
+#
 
 def gen_maze(shape=None, rng=np.random.default_rng(), maze=None, pos=None, init_call=True):
     if init_call:
@@ -91,26 +96,33 @@ def gen_maze(shape=None, rng=np.random.default_rng(), maze=None, pos=None, init_
             gen_maze(shape, rng, maze, tuple(new_pos), False)
 
 
-# def _format_maze(maze):
-#     shape = maze.shape
-#     maze = maze.repeat(3, axis=0).repeat(3, axis=1)
-#     # Cartesian product of [-1,0,1] repeated N times
-#     shifts = np.array(np.meshgrid(*([[-1, 0, 1]] * len(shape)))).T.reshape(-1, len(shape))
-#     # Remove the row with all zeros
-#     # shifts = shifts[np.sum(shifts, axis=1) != 0]
-#     # Only keep rows with exactly one nonzero element
-#     neighbors = neighbors[np.sum(neighbors != 0, axis=1) == 1]
-#     # Give a unique value for each wall depending on its neighbors
-#     pows_two = [2 ** x for x in range(len(shifts))]
-#     walls = [np.roll(maze, shift, (0, 1)) for shift in shifts]
-#     walls = np.array(pows_two).reshape(-1, 1, 1) * walls
-#     walls = sum(walls)
-#     # Replace the original wall value of 1 for each wall
-#     maze[maze == 1] = walls[maze == 1]
-#     maze = maze[1:-1, 1:-1]
-#     return maze
+def gen_spiral_maze(shape=None, rng=np.random.default_rng()):
+    # Mask determines that only one axis changes at a time and that they alternate
+    mask = ((1,0), (0,1), (-1,0), (0,-1))
+    # Length of walls along the (X,Y) axis
+    length = np.array(shape) - (1,2)
+    wall_start = np.array((0,0))
+    step = 0
+    maze = np.zeros(shape, int)
+    # Repeat while there are positive wall lengths
+    while (length>0).any():
+        wall_end = wall_start + length * mask[step%4]
+        # Slice values must go from low (inclusive) to high (exclusive)
+        maze_slice = np.array((np.minimum(wall_start, wall_end), np.maximum(wall_start, wall_end)+1))
+        # Draw wall
+        maze[maze_slice[0][0]:maze_slice[1][0], maze_slice[0][1]:maze_slice[1][1]] = step+1
+        # Decrease the wall length by 2 for the axis that was drawn
+        length = length - 2 * np.abs(mask[step%4])
+        step += 1
+        # Next wall will start once cell away from the end of this wall
+        wall_start = wall_end + mask[step%4]
+        print(maze)
 
-def _format_maze(maze):
+    print(maze)
+
+
+def format_maze(maze):
+    """Make each cell 3x3 and assign values to each type of wall"""
     shape = maze.shape
     maze = maze.repeat(3, axis=0).repeat(3, axis=1)
     # Cartesian product of [-1,0,1] repeated N times
@@ -134,7 +146,7 @@ def _format_maze(maze):
     return walls
 
 
-def _solve_maze(maze, start=(3,3)):
+def solve_maze(maze, start=(3, 3)):
     """Solves the maze by replacing each value with the distance from the end"""
     maze = np.array(maze)
     shape = maze.shape
@@ -169,7 +181,7 @@ def _run_maze_tm(trans, **kwargs):
     tm = TM(trans)
     tm.write_tape(kwargs['target'])
     tm.head_pos = (3,3)
-    tape = tm(kwargs['tm_timeout'])
+    tape = tm.run(kwargs['tm_timeout'])
     return tape
 
 
@@ -179,7 +191,7 @@ def maze_fitness(pop, **kwargs):
     sol = kwargs['maze_sol']
     fits = np.empty(len(pop))
     for i, trans in enumerate(pop):
-        tape = _run_maze_tm(trans, **kwargs)
+        tape = _run_maze_tm(np.array(trans), **kwargs)
         if tape.shape != sol.shape or (tape==maze).all():
             fit = 0
         else:
@@ -193,41 +205,108 @@ def maze_fitness(pop, **kwargs):
 # Mutation Functions
 #
 
-def _random_transition_array(rng=np.random.default_rng(), **kwargs):
-    """Helper function for generating only a single transition"""
-    shape = [len(kwargs['states']), len(kwargs['symbols'])]
-    new_states = rng.choice(kwargs['states'], shape + [1])
-    new_symbols = rng.choice(kwargs['symbols'], shape + [1])
-    new_moves = rng.choice(kwargs['moves'], shape + [kwargs['tape_dim']])
-    transition = np.concat((new_states, new_symbols, new_moves), axis=2)
-    return transition
-
-
-
 def macro_mutation(trans, rng=np.random.default_rng(), **kwargs):
     """Randomly change a value in a random transition"""
+    trans = trans.copy()
+    state_index = rng.choice(kwargs['states'])
+    symbol_index = rng.choice(kwargs['symbols'])
+    index = (state_index, symbol_index)
+    trans[index] = random_trans_array(shape=[], rng=rng, **kwargs)
+    return trans
+
 
 
 #
 # Crossover Functions
 #
 
-def one_point_crossover(a, b, **kwargs):
-    cut_a = kwargs['rng'].integers(0, len(a))
-    cut_b = kwargs['rng'].integers(0, len(b))
-    new_a = a[:cut_a] + b[cut_b:]
-    new_b = b[:cut_b] + a[cut_a:]
-    return new_a, new_b
+def flattened_one_point_crossover(parent_one, parent_two, rng=np.random.default_rng(), **kwargs):
+    shape = parent_one.shape
+    # Children start as flattened copies of parents
+    child_one = parent_one.flatten()
+    child_two = parent_two.flatten()
+    # Point cannot be either end value
+    point_one = rng.integers(1, len(child_one) - 1)
+    point_two = None
+    # Swap slices
+    child_one[point_one:point_two] = parent_two.flatten()[point_one:point_two]
+    child_two[point_one:point_two] = parent_one.flatten()[point_one:point_two]
+    child_one = child_one.reshape(shape)
+    child_two = child_one.reshape(shape)
+    return child_one, child_two
 
 
-def two_point_crossover(a, b, **kwargs):
-    cut_a_0 = kwargs['rng'].integers(0, len(a))
-    cut_b_0 = kwargs['rng'].integers(0, len(b))
-    cut_a_1 = kwargs['rng'].integers(cut_a_0, len(a))
-    cut_b_1 = kwargs['rng'].integers(cut_b_0, len(b))
-    new_a = a[:cut_a_0] + b[cut_b_0:cut_b_1] + a[cut_a_1:]
-    new_b = b[:cut_b_0] + a[cut_a_0:cut_a_1] + b[cut_b_1:]
-    return new_a, new_b
+def flattened_two_point_crossover(parent_one, parent_two, rng=np.random.default_rng(), **kwargs):
+    shape = parent_one.shape
+    # Children start as flattened copies of parents
+    child_one = parent_one.flatten()
+    child_two = parent_two.flatten()
+    # Points must be at least 1 value apart
+    point_one = rng.integers(0, len(child_one) - 1)
+    point_two = rng.integers(point_one + 1, len(child_one))
+    # Swap slices
+    child_one[point_one:point_two] = parent_two.flatten()[point_one:point_two]
+    child_two[point_one:point_two] = parent_one.flatten()[point_one:point_two]
+    child_one = child_one.reshape(shape)
+    child_two = child_one.reshape(shape)
+    return child_one, child_two
+
+
+def axis_one_point_crossover(parent_one, parent_two, rng=np.random.default_rng(), **kwargs):
+    # Select the axis to slice over
+    axis = np.random.randint(0, 3)
+    # None is default as it slices the entire shape
+    slices = [None] * 6
+    # Slice cannot be either end value
+    slices[2 * axis] = rng.integers(1, parent_one.shape[0] - 1)
+    # Children start as copies of parents
+    child_one = parent_one.copy()
+    child_two = parent_two.copy()
+    # Swap slices
+    child_one[slices[0]:slices[1],slices[2]:slices[3],slices[4]:slices[5]] = parent_two[slices[0]:slices[1],slices[2]:slices[3],slices[4]:slices[5]]
+    child_two[slices[0]:slices[1],slices[2]:slices[3],slices[4]:slices[5]] = parent_one[slices[0]:slices[1],slices[2]:slices[3],slices[4]:slices[5]]
+    return child_one, child_two
+
+
+def axis_two_point_crossover(parent_one, parent_two, rng=np.random.default_rng(), **kwargs):
+    # Select the axis to slice over
+    axis = np.random.randint(0, 3)
+    # None is default as it slices the entire shape
+    slices = [None] * 6
+    # Slices must be at least 1 value apart
+    slices[2 * axis] = rng.integers(0, parent_one.shape[0] - 1)
+    slices[2 * axis + 1] = rng.integers(slices[2 * axis] + 1, parent_one.shape[0])
+    # Children start as copies of parents
+    child_one = parent_one.copy()
+    child_two = parent_two.copy()
+    # Swap slices
+    child_one[slices[0]:slices[1],slices[2]:slices[3],slices[4]:slices[5]] = parent_two[slices[0]:slices[1], slices[2]:slices[3], slices[4]:slices[5]]
+    child_two[slices[0]:slices[1],slices[2]:slices[3],slices[4]:slices[5]] = parent_one[slices[0]:slices[1], slices[2]:slices[3], slices[4]:slices[5]]
+    return child_one, child_two
+
+
+def chunk_crossover(parent_one, parent_two, rng=np.random.default_rng(), **kwargs):
+    shape = parent_one.shape
+    # Default values are invalid so this functions as a do-while
+    # TODO find a better implementation with the same probabilities
+    x0 = y0 = z0 = 0
+    x1, y1, z1 = shape
+    # Create random chunk that is not the same as no change
+    while x0 == y0 == z0 == 0 and (x1, y1, z1) == shape:
+        x0 = rng.integers(0, parent_one.shape[0] - 1)
+        x1 = rng.integers(x0 + 1, parent_one.shape[0])
+        y0 = rng.integers(0, parent_one.shape[1] - 1)
+        y1 = rng.integers(y0 + 1, parent_one.shape[1])
+        z0 = rng.integers(0, parent_one.shape[2] - 1)
+        z1 = rng.integers(z0 + 1, parent_one.shape[2])
+        # print('yoink')
+    # Children start as copies of parents
+    child_one = parent_one.copy()
+    child_two = parent_two.copy()
+    # Swap values
+    child_one[x0:x1, y0:y1, z0:z1] = parent_two[x0:x1, y0:y1, z0:z1]
+    child_two[x0:x1, y0:y1, z0:z1] = parent_one[x0:x1, y0:y1, z0:z1]
+    return child_one, child_two
 
 
 #
@@ -246,9 +325,28 @@ def two_point_crossover(a, b, **kwargs):
 
 if __name__ == '__main__':
 
-    t = random_trans_array(shape=[], states=[0,1], symbols=[2,3], moves=[-1,-2], tape_dim=2)
+    pass
 
-    print(t)
+    # t = random_trans_array(shape=[], states=[0,1], symbols=[2,3], moves=[-1,-2], tape_dim=2)
+    #
+    # print(t)
+
+    # trans = np.empty((4,2,4), int)
+    # trans[(0, 0)] = [1, 1,  1,  0]
+    # trans[(1, 0)] = [2, 1,  0, -1]
+    # trans[(2, 0)] = [3, 1, -1,  0]
+    # trans[(3, 0)] = [0, 1,  0,  1]
+    # trans[(0, 1)] = [3, 0, -1,  0]
+    # trans[(1, 1)] = [0, 0,  0,  1]
+    # trans[(2, 1)] = [1, 0,  1,  0]
+    # trans[(3, 1)] = [2, 0,  0, -1]
+    #
+    # # print(trans)
+    #
+    # trans1 = macro_mutation(trans, states=[0,1,2,3], symbols=[0,1], moves=[-1,0,1], tape_dim=2)
+    #
+    # print(trans == trans1)
+
 
     # maze = gen_maze((9,9))
     # maze = _format_maze(maze)

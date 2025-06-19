@@ -1,10 +1,10 @@
 from multiprocessing import Pool, cpu_count
 
-from lgp import _solve_maze
-from save_utils import *
+from src.utils.save import *
 
 """
 Core functions used in controlling evolution
+All functions are independent of what is being evolved
 """
 
 
@@ -84,7 +84,8 @@ def next_pop(pop, **kwargs):
             c1, f1 = tournament_selection(**kwargs)
 
             # Crossover
-            if kwargs['rng'].random() < kwargs['p_c']:
+            c = kwargs['rng'].random()
+            if c < kwargs['p_c']:
                 c0, c1 = kwargs['crossover_func'](c0, c1, **kwargs)
 
             # Mutation
@@ -158,7 +159,7 @@ def _simulate_and_save_test_run(test_num, run_num, test_kwargs, base_kwargs):
 
     # Set path and create directory (thread-safe)
     test_name = test_values[0]
-    path = f'saves/{kwargs["name"]}/data/{test_name}'
+    path = f'../saves/{kwargs["name"]}/data/{test_name}'
     os.makedirs(path, exist_ok=True)
 
     # Assign seed and RNG
@@ -179,10 +180,8 @@ def simulate_tests(num_runs, test_kwargs, **kwargs):
     There are four levels: [test] [run/replicant] [generation/population] [individual]
     """
 
-    kwargs['maze_sol'] = _solve_maze((kwargs['target']!=0)*1)
-
     # Save kwargs first in case of failure
-    save_kwargs(num_runs=num_runs, test_kwargs=test_kwargs, **kwargs)
+    # save_kwargs(num_runs=num_runs, test_kwargs=test_kwargs, **kwargs)
 
     # Number of tests must be inferred and is only used within this function
     num_tests = len(test_kwargs) - 1
